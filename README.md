@@ -11,6 +11,8 @@ A custom USB connected board along with firmware and user interface software wil
 ## The Project
 
 Hardware design files are located at: [Hardware](/Hardware)
-Firmware design files are located at: [Arduino](Software/Embedded/Arduino/DAQ Module)
-Desktop Software files are located at:  [LabView](Software/LabView/BDAQ-6104 Instrument Driver)
+<br />
+Firmware design files are located at: [Arduino](/Software/Embedded/Arduino/DAQ Module)
+<br />
+Desktop Software files are located at:  [LabView](/Software/LabView/BDAQ-6104 Instrument Driver)
 

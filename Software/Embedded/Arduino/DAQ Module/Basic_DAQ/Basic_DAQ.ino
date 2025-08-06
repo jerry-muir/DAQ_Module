@@ -5,7 +5,7 @@
 * to explore data acquision priciples using arduino based HW, in this case an ATmega32u4
 * Microcontroller.
 *
-* This sketch is designed to run on the Basic DAQ HW v0.1.
+* This sketch is designed to run on the Basic DAQ HW v0.2.
 * Code development uses the Arduino IDE.
 * Pinouts are referenced to the Adafruit Itsy Bitsy proto board.
 *
@@ -39,9 +39,9 @@ int txLedState = LOW;                 // USB Transmit and Recieve indicator.
 volatile int sampleNumber = 0;        // Counter for thraking the samples taken.
 volatile int edgeCountMode = CHANGE;  // The edge mode for counting pulses.
 
-float aRefVoltage = 2.04;                  // Analog Reference Voltage.
+float aRefVoltage = 4.096;                 // Analog Reference Voltage.
 float voltageFactor = aRefVoltage / 1024;  // 10 bit resolution is 2 to the 10th
-float inputScaleFactor = .2;               // Vout = Vin*(r2/r1+r2). (5k/(5k+20k) 10V Max input voltage.  - v0.1 board
+float inputScaleFactor = .405;             // Vr1/Vin, Vout = Vin*(r2/r1+r2). (402k/(402k+590k) 10V Max input voltage. (v0.2 HW)
 float voltage[6];                          // Calculated voltages
 
 long txBlinkInterval = 5000;                   // 5 mili seconds = 5,000 micro seconds.
@@ -61,20 +61,29 @@ volatile unsigned long averageCountInterval = 0;     // The caluculated average 
 int64_t secondsSinceEpoc = 0;  // (i64) Seconds since the epoch 01/01/1904 00:00:00.00 UTC (using the Gregorian calendar and ignoring leap seconds)
 
 // Port map.
-int rx_tx = 16;              // TX/RX LED on ItsyBitsy MOSI pin 16
-int pwr_led = 14;            // Power/Status LED on ItsyBitsy MISO pin 14.
-int dio0 = 7;                // Digital Input/Output dio0 on ItsyBitsy INT6 pin 7
-int dio1 = 11;               // Digital Input/Output dio1 on ItsyBitsy PCINT7 pin 11
-int dio2 = 17;               // Digital Input/Output dio2 on ItsyBitsy SS (Defined as Pin 17, Not Available on board)
-int dio3 = 30;               // Digital Input/Output dio3 on ItsyBitsy on PD5 (Defined as Pin 30, Not Available on board)
-int ai0 = A3;                // Analog Input a0, on ItsyBitsy A3 pin 21
-int ai1 = A2;                // Analog Input a1, on ItsyBitsy A2 pin 20
-int ai2 = A1;                // Analog Input a2, on ItsyBitsy A1 pin 19
-int ai3 = A0;                // Analog Input a3, on ItsyBitsy A0 pin 18
-int ai4 = A6;                // Analog Input a4, on ItsyBitsy A6 pin 4
-int ai5 = A11;               // Analog Input a5, ItsyBitsy pin A11 pin 12
-int triggerPort = 7;         // dio0 can alternately be used as the trigger port. 
-int counterPort = 11;        // dio1 can alternately be used as the counter port.
+int rx_tx = LED_BUILTIN;     // TX/RX LED on ItsyBitsy onboard LED pin 13.
+int pwr_led = 12;            // Power/Status LED on ItsyBitsy D12 pin 12.
+int dio0 = 9;                // Digital Input/Output dio0 on ItsyBitsy PCINT5 pin 9.
+int dio1 = 7;                // Digital Input/Output dio1 on ItsyBitsy INT6 pin 7.
+int dio2 = 5;                // Digital Input/Output dio2 on ItsyBitsy D5 pin 5.
+int dio3 = 11;               // Digital Input/Output dio3 on ItsyBitsy on D11 pin 11.
+int ai0 = 23;                // Analog Input ai0, on ItsyBitsy A5 pin 23.
+int ai1 = 22;                // Analog Input ai1, on ItsyBitsy A4 pin 22.
+int ai2 = 21;                // Analog Input ai2, on ItsyBitsy A3 pin 21.
+int ai3 = 20;                // Analog Input ai3, on ItsyBitsy A2 pin 20.
+int ai4 = 19;                // Analog Input ai4, on ItsyBitsy A1 pin 19.
+int ai5 = 18;                // Analog Input ai5, on ItsyBitsy A0 pin 18.
+int slct0 = 0;               // Digital Select slct0, on ItsyBitsy D0 pin 0.
+int slct1 = 1;               // Digital Select slct1, on ItsyBitsy D1 pin 1.
+int slct2 = 6;               // Digital Select slct2, on ItsyBitsy D6 pin 6.
+int slct3 = 8;               // Digital Select slct3, on ItsyBitsy D8 pin 8.
+int slct4 = 10;              // Digital Select slct4, on ItsyBitsy D10 pin 10.
+int slct5 = 4;               // Digital Select slct5, on ItsyBitsy D4 pin 4.
+int triggerPort = dio0;      // dio0 can alternately be used as the trigger port. 
+int counterPort = dio1;      // dio1 can alternately be used as the counter port.
+// Ports 14, 15, 16 (MISO, SCK, MOSI) are used for the serial programming port.
+// Ports 2 & 3 (I2C_SDA, I2C_SLC) are reserved for future use.
+
 int countSamples = 20;       // Number of counter samples to average.
 
 int analogPort[6] = { ai0, ai1, ai2, ai3, ai4, ai5 };              // List of analog port numbers.
@@ -203,14 +212,15 @@ void processInComingSerialCommands() {
     if (commandChar == 'w') writeDigitalPin();
     if (commandChar == '*') processStarCommand();
     if (streamData == false) {  // These commands are allowed only if we are not streaming data.
+      if (commandChar == 'a') getAnalogPinData();
+      if (commandChar == 'r') readDigitalPin();
+      if (commandChar == 'e') readDigitalPins();
+      if (commandChar == 'p') readCount();
       if (commandChar == 'f') setAnalogSampleRate();
       if (commandChar == 'o') setDigitalPinAsOutput();
       if (commandChar == 'i') setDigitalPinAsInput();
       if (commandChar == 'e') enablePullUpResistor();
       if (commandChar == 'd') disablePullUpResistor();
-      if (commandChar == 'a') getAnalogPinData();
-      if (commandChar == 'r') readDigitalPin();
-      if (commandChar == 'e') readDigitalPins();
       if (commandChar == 'g') set_trigger();
       if (commandChar == 'j') clear_trigger();
       if (commandChar == 'k') set_counter();
